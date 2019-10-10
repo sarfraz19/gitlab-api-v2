@@ -10,43 +10,43 @@ project_key = input("enter the project key :")
 
 datevalue = datetime.strftime(datetime.now() - timedelta(10), '%Y-%m-%d')
 
+print("From date : ")
 print(datevalue)
+
 with open('#repository.csv','rt') as f:
     data = csv.reader(f)
     for row in data:
-        url = "https://gitlab.com/api/v4/projects/"+str(row[1])+"/repository/branches"
-        response = http.request('GET', url , headers={"PRIVATE-TOKEN" : project_key})
-        print("==============")
-        print(str(row[0]))
-        if response.status == 200:
-            print("status: success")
-        else:
-            print("  status: Failure")
-        print("==============")
-        #========data===========
-        soup = BeautifulSoup(response.data, "html.parser")
-        #========json_data===========
-        json_data = json.loads(soup.text)
-        #========indi_json_data===========
-        for i in json_data:
-            print("->"+str(i['name']))
+        branch = row[2]
+        word = branch.split(',') 
+        for i in word:
+            print("->"+str(i))
+            url = "https://gitlab.com/api/v4/projects/"+str(row[1])+"/repository/commits?ref_name="+str(i)+"&per_page=10000&since="+datevalue
+            response = http.request('GET', url , headers={"PRIVATE-TOKEN" : project_key})
             if response.status == 200:
                 print("  status: success")
             else:
                 print("  status: Failure")
-            url = "https://gitlab.com/api/v4/projects/"+str(row[1])+"/repository/commits?ref_name="+str(i['name'])+"&per_page=10000&since="+datevalue
-            response = http.request('GET', url , headers={"PRIVATE-TOKEN" : project_key})
             soup = BeautifulSoup(response.data, "html.parser")
             json_data = json.loads(soup.text)
+            for j in json_data:
+                url = "https://gitlab.com/api/v4/projects/"+str(row[1])+"/repository/commits/"+j['short_id']
+                response = http.request('GET', url , headers={"PRIVATE-TOKEN" : project_key})
+                json_data2 = json.loads(response.data)
+                j.update({'stats': str(json_data2['stats'])})
+                try:
+                    j.update({'ref': str(json_data2['ref'])})
+                except:
+                    j.update({'ref': 'Null'})
             #
             #specify the path here
             #
             path = os.getcwd()+'\\#result\\'
             try:
-                pd.read_json(json.dumps(json_data)).to_csv(path+str(row[0])+'_'+str(i['name'])+'.csv', columns=['id',  'title',  'committer_name', 'committer_email', 'committed_date'])
+                pd.read_json(json.dumps(json_data)).to_csv(path+str(row[0])+'_'+str(i)+'.csv', columns=['id',  'title',  'committer_name', 'committer_email', 'committed_date', 'stats', 'ref'])
             except:
                 print(" ")
-                print(str(i['name'])+" has no commits")             
+                if str(i):
+                    print(str(i)+" has no commits")             
                 print(" ")
 
 
